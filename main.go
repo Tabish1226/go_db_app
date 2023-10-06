@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -103,10 +104,34 @@ func (r *Repository) DeleteBook(c *fiber.Ctx) error {
 	return nil
 }
 
+func (r *Repository) UpdateBook(c *fiber.Ctx) error {
+	book := Book{}
+	bookModel := &[]models.Book{}
+	id := c.Params("id")
+
+	fmt.Println(string(id))
+	fmt.Println(string(c.Body()))
+
+	if id == "" {
+		return c.Status(http.StatusBadRequest).JSON(&fiber.Map{"message": "id cannot be empty"})
+	}
+
+	if err := c.BodyParser(&book); err != nil {
+		return c.Status(http.StatusUnprocessableEntity).JSON(&fiber.Map{"message": "request failed"})
+	}
+
+	if err := r.DB.Model(bookModel).Where("id = ?", id).Updates(book).Error; err != nil {
+		return c.Status(http.StatusBadRequest).JSON(&fiber.Map{"message": "could not update book"})
+	}
+
+	return c.Status(http.StatusOK).JSON(&fiber.Map{"message": "book updated"})
+}
+
 func (r *Repository) SetupRoutes(app *fiber.App) {
 	api := app.Group("/api")
 	api.Post("/create_book", r.CreateBook)
 	api.Delete("/delete_book/:id", r.DeleteBook)
+	api.Put("/update_book/:id", r.UpdateBook)
 	api.Get("/get_book/:id", r.GetBookByID)
 	api.Get("/books", r.GetBooks)
 }
