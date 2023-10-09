@@ -21,6 +21,13 @@ type Repository struct {
 	DB *gorm.DB
 }
 
+type CustomResponse struct {
+	ID        uint   `json:"id"`
+	Title     string `json:"title"`
+	Publisher string `json:"publisher"`
+	Author    string `json:"Author"`
+}
+
 func (r *Repository) CreateBook(c *fiber.Ctx) error {
 	book := Book{}
 
@@ -48,15 +55,26 @@ func (r *Repository) CreateBook(c *fiber.Ctx) error {
 func (r *Repository) GetBooks(c *fiber.Ctx) error {
 	bookModels := &[]models.Book{}
 
-	err := r.DB.Find(&bookModels).Error
-
+	// err := r.DB.Find(&bookModels).Error
+	err := r.DB.Preload("Author").Find(&bookModels).Error
 	if err != nil {
 		c.Status(http.StatusBadRequest).JSON(
 			&fiber.Map{"status": "error", "message": "could not get books"})
 		return err
 	}
+
+	customModel := make([]CustomResponse, len(*bookModels))
+	for i, book := range *bookModels {
+		customModel[i] = CustomResponse{
+			ID:        book.ID,
+			Title:     *book.Title,
+			Publisher: *book.Publisher,
+			Author:    *book.Author.Name,
+		}
+	}
+
 	c.Status(http.StatusOK).JSON(
-		&fiber.Map{"status": "success", "message": "books retrieved", "data": bookModels})
+		&fiber.Map{"status": "success", "message": "books retrieved", "data": customModel})
 	return nil
 }
 
