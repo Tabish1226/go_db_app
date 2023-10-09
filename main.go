@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -104,13 +103,30 @@ func (r *Repository) DeleteBook(c *fiber.Ctx) error {
 	return nil
 }
 
+// func (r *Repository) UpdateBook(c *fiber.Ctx) error {
+// 	book := Book{}
+// 	bookModel := &[]models.Book{}
+// 	id := c.Params("id")
+
+// 	if id == "" {
+// 		return c.Status(http.StatusBadRequest).JSON(&fiber.Map{"message": "id cannot be empty"})
+// 	}
+
+// 	if err := c.BodyParser(&book); err != nil {
+// 		return c.Status(http.StatusUnprocessableEntity).JSON(&fiber.Map{"message": "request failed"})
+// 	}
+
+// 	if err := r.DB.Model(bookModel).Where("id = ?", id).Updates(book).Error; err != nil {
+// 		return c.Status(http.StatusBadRequest).JSON(&fiber.Map{"message": "could not update book"})
+// 	}
+
+// 	return c.Status(http.StatusOK).JSON(&fiber.Map{"message": "book updated"})
+// }
+
 func (r *Repository) UpdateBook(c *fiber.Ctx) error {
 	book := Book{}
 	bookModel := &[]models.Book{}
 	id := c.Params("id")
-
-	fmt.Println(string(id))
-	fmt.Println(string(c.Body()))
 
 	if id == "" {
 		return c.Status(http.StatusBadRequest).JSON(&fiber.Map{"message": "id cannot be empty"})
@@ -120,11 +136,15 @@ func (r *Repository) UpdateBook(c *fiber.Ctx) error {
 		return c.Status(http.StatusUnprocessableEntity).JSON(&fiber.Map{"message": "request failed"})
 	}
 
-	if err := r.DB.Model(bookModel).Where("id = ?", id).Updates(book).Error; err != nil {
-		return c.Status(http.StatusBadRequest).JSON(&fiber.Map{"message": "could not update book"})
+	if err := r.DB.First(bookModel, id).Error; err != nil {
+		return c.Status(http.StatusNotFound).JSON(&fiber.Map{"message": "could not find book"})
 	}
 
-	return c.Status(http.StatusOK).JSON(&fiber.Map{"message": "book updated"})
+	if err := r.DB.Model(bookModel).Updates(book).Error; err != nil {
+		return c.Status(http.StatusBadRequest).JSON(&fiber.Map{"message": "could not update book"})
+	} else {
+		return c.Status(http.StatusBadRequest).JSON(&fiber.Map{"message": "book updated."})
+	}
 }
 
 func (r *Repository) SetupRoutes(app *fiber.App) {
@@ -134,6 +154,22 @@ func (r *Repository) SetupRoutes(app *fiber.App) {
 	api.Put("/update_book/:id", r.UpdateBook)
 	api.Get("/get_book/:id", r.GetBookByID)
 	api.Get("/books", r.GetBooks)
+}
+
+func AutoMigrate(db *gorm.DB) error {
+	err := models.MigrateBooks(db)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	err = models.MigrateAuthors(db)
+	if err != nil {
+		log.Fatal(err)
+		return err
+	}
+
+	return nil
 }
 
 func main() {
@@ -156,7 +192,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = models.MigrateBooks(db)
+	err = AutoMigrate(db)
 	if err != nil {
 		log.Fatal(err)
 	}
